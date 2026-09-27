@@ -10,3 +10,17 @@ __pycache__/
 input.txt
 env/
 venv/
+# Task 0 experiment outputs
+out-*/
+wandb/
+__pycache__/
+*.pyc
+
+# Generated Shakespeare data
+data/shakespeare_char/input.txt
+data/shakespeare_char/train.bin
+data/shakespeare_char/val.bin
+data/shakespeare_char/meta.pkl
+
+# Temporary/debug files
+*.log
