@@ -275,7 +275,7 @@ while True:
         param_group['lr'] = lr
 
     # evaluate the loss on train/val sets and write checkpoints
-    if iter_num % eval_interval == 0 and master_process:
+    if (iter_num % eval_interval == 0 or iter_num == max_iters) and master_process:
         losses = estimate_loss()
         train_ppl = math.exp(losses['train'].item())
         val_ppl = math.exp(losses['val'].item())
@@ -289,8 +289,6 @@ while True:
                 "mfu": running_mfu*100, # convert to percentage
                 "train/ppl": train_ppl,
                 "val/ppl": val_ppl,
-                "performance/tokens_per_s": tokens_per_s,
-                "performance/peak_memory_mb": peak_memory_mb,
             })
         is_best = losses['val'] < best_val_loss
 
@@ -353,7 +351,7 @@ while True:
     t1 = time.time()
     dt = t1 - t0
     t0 = t1
-    if (iter_num % eval_interval == 0 or iter_num == max_iters) and master_process:
+    if iter_num % log_interval == 0 and master_process:
         # get loss as float. note: this is a CPU-GPU sync point
         # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
         lossf = loss.item() * gradient_accumulation_steps
@@ -367,12 +365,17 @@ while True:
             mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
             running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
         print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms,tokens/s {tokens_per_s:,.0f},peak memory {peak_memory_mb:.1f} MB, mfu {running_mfu*100:.2f}%")
+        if wandb_log:
+            wandb.log({
+                "iter": iter_num,
+                "train/loss_step": lossf,
+                "lr": lr,
+                "performance/tokens_per_s": tokens_per_s,
+                "performance/peak_memory_mb": peak_memory_mb,
+            })
     iter_num += 1
     local_iter_num += 1
 
-    # termination conditions
-    if iter_num > max_iters:
-        break
 training_time_s = time.perf_counter() - training_start
 
 if master_process:
