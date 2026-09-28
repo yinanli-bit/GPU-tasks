@@ -72,6 +72,12 @@ backend = 'nccl' # 'nccl', 'gloo', etc.
 device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True # use PyTorch 2.0 to compile the model to be faster
+# profiler
+profile_run = False
+profile_dir = 'profiler'
+profile_skip = 120
+profile_warmup = 5
+profile_active = 30
 
 seed=1337
 allow_tf32=False
@@ -266,6 +272,59 @@ raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
 if device_type == 'cuda':
     torch.cuda.reset_peak_memory_stats()
+prof = None
+
+if profile_run and master_process:
+    os.makedirs(profile_dir, exist_ok=True)
+
+    activities = [
+        torch.profiler.ProfilerActivity.CPU,
+    ]
+
+    if device_type == 'cuda':
+        activities.append(torch.profiler.ProfilerActivity.CUDA)
+
+    def trace_handler(p):
+        sort_key = (
+            "self_cuda_time_total"
+            if device_type == 'cuda'
+            else "self_cpu_time_total"
+        )
+
+        table = p.key_averages(
+            group_by_input_shape=True
+        ).table(
+            sort_by=sort_key,
+            row_limit=20
+        )
+
+        print(table)
+
+        with open(
+            os.path.join(profile_dir, "summary.txt"),
+            "w"
+        ) as f:
+            f.write(table)
+
+        p.export_chrome_trace(
+            os.path.join(profile_dir, "trace.json")
+        )
+
+    prof = torch.profiler.profile(
+        activities=activities,
+        schedule=torch.profiler.schedule(
+            skip_first=profile_skip,
+            wait=0,
+            warmup=profile_warmup,
+            active=profile_active,
+            repeat=1,
+        ),
+        on_trace_ready=trace_handler,
+        record_shapes=True,
+        profile_memory=True,
+    )
+
+    prof.start()
 training_start = time.perf_counter()
 while True:
 
@@ -373,9 +432,13 @@ while True:
                 "performance/tokens_per_s": tokens_per_s,
                 "performance/peak_memory_mb": peak_memory_mb,
             })
+    if prof is not None:
+        prof.step()
     iter_num += 1
     local_iter_num += 1
 
+if prof is not None:
+    prof.stop()
 training_time_s = time.perf_counter() - training_start
 
 if master_process:
