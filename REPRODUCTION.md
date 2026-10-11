@@ -10,7 +10,7 @@ This document describes how to reproduce the complete Task 0 workflow based on n
 6. Fixed-prompt inference
 7. PyTorch Profiler
 
-The formal FP32/BF16 training results in `results/task0_results.md` were produced on:
+The formal FP32/BF16 training results in `result/task0_results.md` were produced on:
 
 - GPU: NVIDIA GeForce RTX 3080 Ti
 - PyTorch: 2.3.0+cu121
