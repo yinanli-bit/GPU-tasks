@@ -44,7 +44,7 @@ For exact correspondence with the formal FP32/BF16 training runs:
 git checkout 68832f9
 ```
 
-> The formal FP32 and BF16 checkpoints/results in `results/task0_results.md` correspond to commit `68832f9`.
+> The formal FP32 and BF16 checkpoints/results in `result/task0_results.md` correspond to commit `68832f9`.
 >
 > The later profiler experiment requires the profiler-enabled version on `main`.
 
@@ -601,7 +601,7 @@ MLP hidden dimension = 512
 The formal FP32/BF16 measurements, checkpoint-to-W&B mapping, fixed-prompt outputs, and profiler observations are recorded in:
 
 ```text
-results/task0_results.md
+result/task0_results.md
 ```
 
 For the reported formal experiment:
